@@ -1,8 +1,9 @@
+
 # media-tool
 
 Tkinter UI with IMAGE/VIDEO tabs plus reusable image/video pipelines.
 
-![Alt text](image.png)
+Preview (image.png)
 
 ## Quick start
 ```bash
