@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-wheels:
+    name: Build wheels & sdist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install build
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+      - name: Build
+        run: python -m build
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  win-pyinstaller:
+    name: Windows EXE
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ffmpeg (Windows)
+        run: choco install ffmpeg -y
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+      - name: Build EXE
+        run: |
+          pyinstaller -F -w `
+            --name MediaTool `
+            --hidden-import=tkinter `
+            --collect-all PIL `
+            src/mediatool/__main__.py
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: mediatool-windows
+          path: dist/MediaTool.exe
+
+  linux-pyinstaller:
+    name: Linux onefile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install system Tk & ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk ffmpeg
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+      - name: Build binary
+        run: |
+          pyinstaller -F -w \
+            --name mediatool \
+            --hidden-import=tkinter \
+            --collect-all PIL \
+            src/mediatool/__main__.py
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: mediatool-linux
+          path: dist/mediatool
+
+  create-release:
+    needs: [build-wheels, win-pyinstaller, linux-pyinstaller]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/dist/*
+            artifacts/mediatool-windows/MediaTool.exe
+            artifacts/mediatool-linux/mediatool
